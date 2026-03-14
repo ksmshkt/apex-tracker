@@ -518,7 +518,6 @@ function addEntry() {
   const pts = signPositive ? Math.abs(parseInt(raw)) : -Math.abs(parseInt(raw));
   entries.unshift({ id: Date.now(), date, rank, points: pts, memo });
   saveData(); updateHeader();
-  document.getElementById('f-rank').value = '';
   document.getElementById('f-points').value = '';
   document.getElementById('f-memo').value = '';
   document.getElementById('f-date').value = today();
