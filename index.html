@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>APEX TRACKER</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --red: #e84545; --red-dim: #8b2121;
+    --bg: #0b0c10; --bg2: #13141a; --bg3: #1c1e28; --bg4: #252836;
+    --border: #2e3147; --border-bright: #4a4f6e;
+    --text: #e8eaf6; --text2: #8b8fa8; --text3: #555978;
+    --gold: #f7c948; --teal: #00e5c8; --purple: #9b72ff;
+    --font-head: 'Rajdhani', sans-serif;
+    --font-body: 'Noto Sans JP', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(232,69,69,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(232,69,69,0.03) 1px,transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 16px 16px 80px; }
+
+  /* HEADER */
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--red); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 700; font-size: 16px; color: white; flex-shrink: 0; }
+  .logo-text { font-family: var(--font-head); font-weight: 700; font-size: 22px; letter-spacing: 3px; color: var(--text); }
+  .logo-text span { color: var(--red); }
+  .header-stats { display: flex; gap: 16px; }
+  .hstat { text-align: right; }
+  .hstat-val { font-family: var(--font-head); font-size: 20px; font-weight: 700; color: var(--teal); line-height: 1; }
+  .hstat-label { font-size: 10px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: var(--bg2); border-top: 1px solid var(--border); z-index: 50; justify-content: space-around; align-items: stretch; }
+  .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: none; color: var(--text3); cursor: pointer; font-family: var(--font-head); font-size: 10px; letter-spacing: 1px; font-weight: 600; transition: color 0.2s; padding: 0; }
+  .bnav-item svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .bnav-item.active { color: var(--red); }
+
+  /* DESKTOP TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab { font-family: var(--font-head); font-size: 14px; font-weight: 600; letter-spacing: 1px; padding: 10px 18px; background: none; border: none; color: var(--text3); cursor: pointer; position: relative; transition: color 0.2s; }
+  .tab::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--red); transform: scaleX(0); transition: transform 0.2s; }
+  .tab.active { color: var(--text); }
+  .tab.active::after { transform: scaleX(1); }
+  .tab:hover { color: var(--text2); }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* FORM */
+  .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; position: relative; overflow: hidden; }
+  .form-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,var(--red) 0%,transparent 100%); }
+  .form-card h2 { font-family: var(--font-head); font-size: 16px; font-weight: 600; letter-spacing: 2px; color: var(--text2); margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: var(--font-body); font-size: 16px; padding: 10px 12px; outline: none; transition: border-color 0.2s; -webkit-appearance: none; appearance: none; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--red); }
+  .form-group textarea { resize: vertical; min-height: 80px; font-size: 14px; }
+  .form-group select option { background: var(--bg3); }
+
+  /* BUTTONS */
+  .btn { font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: 2px; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--red); color: white; clip-path: polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px)); }
+  .btn-primary:hover { background: #ff5a5a; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border-bright); color: var(--text2); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-ghost:active { transform: scale(0.97); }
+  .btn-outline-red { background: transparent; border: 1px solid rgba(232,69,69,0.4); color: var(--red); }
+  .btn-outline-red:hover { background: rgba(232,69,69,0.08); }
+  .btn-danger { background: transparent; border: 1px solid var(--red-dim); color: var(--red); font-size: 11px; padding: 5px 10px; }
+  .btn-danger:hover { background: rgba(232,69,69,0.1); }
+
+  /* DATA CARD */
+  .data-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; position: relative; overflow: hidden; }
+  .data-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,var(--teal) 0%,transparent 100%); }
+  .data-card h2 { font-family: var(--font-head); font-size: 16px; font-weight: 600; letter-spacing: 2px; color: var(--text2); margin-bottom: 6px; }
+  .data-card .desc { font-size: 12px; color: var(--text3); margin-bottom: 16px; line-height: 1.7; }
+  .data-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .import-label { font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: 2px; padding: 12px 24px; border-radius: 4px; border: 1px solid var(--border-bright); color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .import-label:hover { border-color: var(--teal); color: var(--teal); }
+  #import-file { display: none; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--bg4); border: 1px solid var(--border-bright); color: var(--text); font-size: 13px; padding: 10px 20px; border-radius: 6px; opacity: 0; transition: all 0.3s; z-index: 200; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* RANK BADGE */
+  .rank-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 3px; font-family: var(--font-head); font-size: 12px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+  .rank-Rookie   { background: rgba(180,140,100,0.15); color: #b48c64; border: 1px solid rgba(180,140,100,0.3); }
+  .rank-Bronze   { background: rgba(205,127,50,0.15);  color: #cd7f32; border: 1px solid rgba(205,127,50,0.3); }
+  .rank-Silver   { background: rgba(192,200,208,0.15); color: #c0c8d0; border: 1px solid rgba(192,200,208,0.3); }
+  .rank-Gold     { background: rgba(247,201,72,0.15);  color: var(--gold); border: 1px solid rgba(247,201,72,0.3); }
+  .rank-Platinum { background: rgba(0,229,200,0.15);   color: var(--teal); border: 1px solid rgba(0,229,200,0.3); }
+  .rank-Diamond  { background: rgba(155,114,255,0.15); color: var(--purple); border: 1px solid rgba(155,114,255,0.3); }
+  .rank-Master   { background: rgba(155,114,255,0.2);  color: #c8a8ff; border: 1px solid rgba(155,114,255,0.5); }
+  .rank-Predator { background: rgba(232,69,69,0.2);    color: var(--red); border: 1px solid rgba(232,69,69,0.4); }
+
+  /* TABLE */
+  .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .table-header h2 { font-family: var(--font-head); font-size: 15px; font-weight: 600; letter-spacing: 2px; color: var(--text2); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { font-family: var(--font-head); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); font-weight: 600; padding: 11px 14px; text-align: left; background: var(--bg3); border-bottom: 1px solid var(--border); }
+  td { padding: 11px 14px; border-bottom: 1px solid rgba(46,49,71,0.5); color: var(--text2); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  td.point-pos { color: var(--teal); font-weight: 500; font-family: var(--font-head); font-size: 15px; }
+  td.point-neg { color: var(--red);  font-weight: 500; font-family: var(--font-head); font-size: 15px; }
+  td.date-cell { color: var(--text3); font-size: 11px; white-space: nowrap; }
+  td.memo-cell { color: var(--text3); font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* MOBILE CARDS */
+  .entry-cards { display: flex; flex-direction: column; gap: 8px; }
+  .entry-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .entry-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .entry-card-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .entry-card-date { font-size: 11px; color: var(--text3); white-space: nowrap; }
+  .entry-card-pts { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
+  .entry-card-pts.pos { color: var(--teal); }
+  .entry-card-pts.neg { color: var(--red); }
+  .entry-card-memo { font-size: 12px; color: var(--text3); line-height: 1.5; padding-top: 6px; border-top: 1px solid var(--border); }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text3); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 10px; opacity: 0.3; }
+
+  /* CHARTS */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; position: relative; overflow: hidden; }
+  .chart-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,transparent,var(--border-bright),transparent); }
+  .chart-card h3 { font-family: var(--font-head); font-size: 12px; font-weight: 600; letter-spacing: 2px; color: var(--text3); margin-bottom: 14px; text-transform: uppercase; }
+  .chart-card.full { grid-column: 1 / -1; }
+
+  /* STAT CARDS */
+  .stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; position: relative; overflow: hidden; }
+  .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent,var(--border)); width: 100%; }
+  .stat-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+  .stat-val { font-family: var(--font-head); font-size: 24px; font-weight: 700; line-height: 1; color: var(--text); }
+  .stat-val.up { color: var(--teal); } .stat-val.down { color: var(--red); } .stat-val.gold { color: var(--gold); }
+  .stat-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+  /* ANALYSIS */
+  .analysis-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 14px; position: relative; overflow: hidden; }
+  .analysis-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,var(--purple) 0%,var(--teal) 100%); }
+  .analysis-card h2 { font-family: var(--font-head); font-size: 17px; font-weight: 700; letter-spacing: 2px; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ai-badge { font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 2px; background: rgba(155,114,255,0.2); color: var(--purple); border: 1px solid rgba(155,114,255,0.3); font-family: var(--font-head); }
+  .analysis-card .sub { font-size: 12px; color: var(--text3); margin-bottom: 16px; }
+  .analysis-result { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-top: 14px; font-size: 14px; line-height: 1.8; color: var(--text2); min-height: 60px; }
+  .analysis-result.loading { display: flex; align-items: center; gap: 10px; color: var(--text3); }
+  .loader { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .analysis-section { margin-bottom: 12px; }
+  .analysis-section h4 { font-family: var(--font-head); font-size: 13px; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag { font-size: 12px; padding: 4px 10px; border-radius: 3px; font-family: var(--font-head); font-weight: 600; letter-spacing: 0.5px; }
+  .tag-weak   { background: rgba(232,69,69,0.15);  color: var(--red);    border: 1px solid rgba(232,69,69,0.3); }
+  .tag-strong { background: rgba(0,229,200,0.15);  color: var(--teal);   border: 1px solid rgba(0,229,200,0.3); }
+  .tag-tip    { background: rgba(247,201,72,0.10); color: var(--gold);   border: 1px solid rgba(247,201,72,0.25); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border-bright); border-radius: 10px; padding: 22px; max-width: 480px; width: 100%; position: relative; }
+  .modal h3 { font-family: var(--font-head); font-size: 17px; font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; }
+  .memo-full { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-size: 13px; line-height: 1.7; color: var(--text2); margin: 12px 0; min-height: 60px; white-space: pre-wrap; }
+  .modal-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--text); }
+
+  .error-msg { color: var(--red); font-size: 11px; margin-top: 6px; display: none; }
+  .search-input { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text2); font-family: var(--font-body); font-size: 14px; padding: 7px 12px; outline: none; width: 150px; }
+  .search-input:focus { border-color: var(--red); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .app { padding: 12px 12px 72px; }
+    .bottom-nav { display: flex; }
+    .tabs { display: none; }
+    header { margin-bottom: 14px; padding-bottom: 12px; }
+    .logo-text { font-size: 18px; }
+    .header-stats { gap: 12px; }
+    .hstat-val { font-size: 16px; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .stat-row { grid-template-columns: repeat(2,1fr); }
+    .stat-val { font-size: 20px; }
+    .chart-row { grid-template-columns: 1fr; }
+    .desktop-table { display: none; }
+    .mobile-cards { display: block; }
+    .analysis-grid { grid-template-columns: 1fr !important; }
+    .data-actions { flex-direction: column; align-items: stretch; }
+    .data-actions .btn, .data-actions .import-label { text-align: center; }
+    .search-input { width: 130px; }
+  }
+  @media (min-width: 769px) {
+    .mobile-cards { display: none; }
+    .desktop-table { display: block; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">A</div>
+      <div class="logo-text">APEX <span>TRACKER</span></div>
+    </div>
+    <div class="header-stats">
+      <div class="hstat"><div class="hstat-val" id="h-sessions">0</div><div class="hstat-label">記録</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-total" style="color:var(--gold)">+0</div><div class="hstat-label">累計PT</div></div>
+      <div class="hstat"><div class="hstat-val" id="h-rank" style="color:var(--text2)">—</div><div class="hstat-label">最新</div></div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('record')">記録</button>
+    <button class="tab" onclick="switchTab('history')">履歴</button>
+    <button class="tab" onclick="switchTab('chart')">グラフ</button>
+    <button class="tab" onclick="switchTab('analysis')">AI分析</button>
+    <button class="tab" onclick="switchTab('data')">データ</button>
+    <button class="tab" onclick="switchTab('settings')">設定</button>
+  </div>
+
+  <!-- RECORD -->
+  <div id="view-record" class="view active">
+    <div class="form-card">
+      <h2>NEW ENTRY</h2>
+      <div class="form-grid">
+        <div class="form-group"><label>日付</label><input type="date" id="f-date"></div>
+        <div class="form-group">
+          <label>ランク</label>
+          <select id="f-rank">
+            <option value="">選択</option>
+            <option>Rookie</option><option>Bronze</option><option>Silver</option>
+            <option>Gold</option><option>Platinum</option><option>Diamond</option>
+            <option>Master</option><option>Predator</option>
+          </select>
+        </div>
+        <div class="form-group"><label>ポイント変動</label><input type="number" id="f-points" placeholder="+60 or -24" inputmode="numeric"></div>
+        <div class="form-group" style="grid-column:1/-1"><label>メモ</label><textarea id="f-memo" placeholder="反省・気づきなど…"></textarea></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="addEntry()">RECORD</button>
+        <span class="error-msg" id="err">日付・ランク・ポイントは必須です</span>
+      </div>
+    </div>
+    <div id="recent-wrap"></div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="view-history" class="view">
+    <div class="desktop-table">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>HISTORY</h2>
+          <input class="search-input" id="search-d" placeholder="検索…" oninput="renderHistory()">
+        </div>
+        <div id="history-table-d"></div>
+      </div>
+    </div>
+    <div class="mobile-cards">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
+        <span style="font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--text2);">HISTORY</span>
+        <input class="search-input" id="search-m" placeholder="検索…" oninput="renderHistory()" style="width:130px;">
+      </div>
+      <div id="history-cards-m"></div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div id="view-chart" class="view">
+    <div class="stat-row" id="stat-row"></div>
+    <div class="chart-card full" style="margin-bottom:14px;">
+      <h3>ポイント推移</h3>
+      <div style="position:relative;height:240px;"><canvas id="chart-line"></canvas></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card"><h3>ランク別平均</h3><div style="position:relative;height:200px;"><canvas id="chart-bar"></canvas></div></div>
+      <div class="chart-card"><h3>曜日別平均</h3><div style="position:relative;height:200px;"><canvas id="chart-daily"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div id="view-analysis" class="view">
+    <div class="analysis-card">
+      <h2>AI 戦績分析 <span class="ai-badge">CLAUDE</span></h2>
+      <div class="sub">メモを解析して得意・苦手・改善ポイントを抽出します</div>
+      <button class="btn btn-primary" onclick="runAnalysis()" id="btn-analyze">ANALYZE</button>
+      <div id="analysis-result" style="display:none;"></div>
+    </div>
+    <div class="analysis-card">
+      <h2 style="font-size:14px;color:var(--text2);">MEMO LOG</h2>
+      <div id="memo-log" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- DATA -->
+  <div id="view-data" class="view">
+
+    <div class="data-card">
+      <h2>EXPORT</h2>
+      <div class="desc">全データをJSONファイルに書き出します。バックアップや他デバイスへの移行に使えます。</div>
+      <div class="data-actions">
+        <button class="btn btn-primary" onclick="exportJSON()">JSON をダウンロード</button>
+        <button class="btn btn-ghost" onclick="exportClipboard()">クリップボードにコピー</button>
+      </div>
+    </div>
+
+    <div class="data-card">
+      <h2>IMPORT</h2>
+      <div class="desc">
+        エクスポートしたJSONファイルを読み込みます。<br>
+        <span style="color:var(--red);">⚠ 既存データに追記されます（重複は自動スキップ）。</span>
+      </div>
+      <div class="data-actions">
+        <label class="import-label" for="import-file">JSONファイルを選択</label>
+        <input type="file" id="import-file" accept=".json" onchange="importJSON(event)">
+      </div>
+    </div>
+
+    <div class="data-card" style="border-color:var(--red-dim);">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red) 0%,transparent 100%);"></div>
+      <h2 style="color:var(--red);">DANGER ZONE</h2>
+      <div class="desc">全データを削除します。この操作は取り消せません。事前にエクスポートを推奨します。</div>
+      <button class="btn btn-outline-red" onclick="clearAll()">全データを削除</button>
+    </div>
+
+    <div class="data-card">
+      <h2>DATA PREVIEW</h2>
+      <div class="desc" id="preview-meta">— 件</div>
+      <pre id="json-preview" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:11px;color:var(--text3);overflow-x:auto;max-height:260px;overflow-y:auto;line-height:1.6;"></pre>
+    </div>
+
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="view-settings" class="view">
+    <div class="data-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple) 0%,transparent 100%);"></div>
+      <h2>API KEY 設定</h2>
+      <div class="desc">
+        AI分析機能を使うには Anthropic の APIキーが必要です。<br>
+        キーはこのブラウザ内にのみ保存され、Anthropic以外には送信されません。<br>
+        取得先: <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal);">console.anthropic.com</a>（無料で$5クレジット付き）
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:1;min-width:240px;">
+          <label>Anthropic API Key</label>
+          <div style="position:relative;">
+            <input type="password" id="apikey-input" placeholder="sk-ant-api03-…" autocomplete="off" style="width:100%;padding-right:44px;">
+            <button onclick="toggleKeyVisibility()" id="key-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1;">👁</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveApiKey()" style="flex-shrink:0;">SAVE</button>
+        <button class="btn btn-ghost" onclick="clearApiKey()" style="flex-shrink:0;">削除</button>
+      </div>
+      <div id="key-status" style="margin-top:12px;font-size:12px;"></div>
+    </div>
+    <div class="data-card">
+      <h2 style="font-size:14px;color:var(--text2);">使い方ガイド</h2>
+      <div style="font-size:13px;color:var(--text3);line-height:2;margin-top:4px;">
+        <div>① <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal);">console.anthropic.com</a> でアカウント作成</div>
+        <div>② 「API Keys」→「Create Key」でキーを発行</div>
+        <div>③ 上のフォームにペーストして「SAVE」</div>
+        <div>④ AI分析タブで「ANALYZE」を押すと分析開始</div>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:rgba(247,201,72,0.07);border:1px solid rgba(247,201,72,0.2);border-radius:6px;font-size:12px;color:var(--gold);line-height:1.7;">
+        ⚠ APIキーは自分だけが使うものです。他人と共有しないでください。<br>
+        利用料金はAnthropicアカウントに発生します（通常数円〜数十円/月程度）。
+      </div>
+    </div>
+  </div>
+
+</div><!-- .app -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="bnav-item active" onclick="switchTab('record')" id="bnav-record">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>記録
+  </button>
+  <button class="bnav-item" onclick="switchTab('history')" id="bnav-history">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9" stroke-linecap="round"/></svg>履歴
+  </button>
+  <button class="bnav-item" onclick="switchTab('chart')" id="bnav-chart">
+    <svg viewBox="0 0 24 24"><path d="M3 20l5-8 4 5 4-9 5 12" stroke-linecap="round" stroke-linejoin="round"/></svg>グラフ
+  </button>
+  <button class="bnav-item" onclick="switchTab('analysis')" id="bnav-analysis">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke-linecap="round"/></svg>AI分析
+  </button>
+  <button class="bnav-item" onclick="switchTab('data')" id="bnav-data">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/></svg>データ
+  </button>
+  <button class="bnav-item" onclick="switchTab('settings')" id="bnav-settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round"/></svg>設定
+  </button>
+</nav>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-meta" style="font-size:11px;color:var(--text3);margin-bottom:4px;"></div>
+    <div class="memo-full" id="modal-memo"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RANKS = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Predator'];
+const RANK_COLORS = { Rookie:'#b48c64', Bronze:'#cd7f32', Silver:'#c0c8d0', Gold:'#f7c948', Platinum:'#00e5c8', Diamond:'#9b72ff', Master:'#c8a8ff', Predator:'#e84545' };
+
+let entries = JSON.parse(localStorage.getItem('apex_entries') || '[]');
+let lineChart, barChart, dailyChart;
+
+function saveData() { localStorage.setItem('apex_entries', JSON.stringify(entries)); }
+function today()    { return new Date().toISOString().split('T')[0]; }
+function fmtPt(p)   { return (p >= 0 ? '+' : '') + p; }
+
+document.getElementById('f-date').value = today();
+
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = color || 'var(--border-bright)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function switchTab(id) {
+  const tabs = ['record','history','chart','analysis','data','settings'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === id));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('bnav-'+id);
+  if(nb) nb.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  if(id === 'chart')    renderCharts();
+  if(id === 'history')  renderHistory();
+  if(id === 'analysis') { renderMemoLog(); checkApiKeyStatus(); }
+  if(id === 'record')   renderRecent();
+  if(id === 'data')     renderDataPreview();
+  if(id === 'settings') renderKeyStatus();
+}
+
+function addEntry() {
+  const date = document.getElementById('f-date').value;
+  const rank = document.getElementById('f-rank').value;
+  const pts  = document.getElementById('f-points').value;
+  const memo = document.getElementById('f-memo').value.trim();
+  const err  = document.getElementById('err');
+  if(!date || !rank || pts === '') { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  entries.unshift({ id: Date.now(), date, rank, points: parseInt(pts), memo });
+  saveData(); updateHeader();
+  document.getElementById('f-rank').value = '';
+  document.getElementById('f-points').value = '';
+  document.getElementById('f-memo').value = '';
+  document.getElementById('f-date').value = today();
+  renderRecent();
+  showToast('記録しました ✓', 'var(--teal)');
+}
+
+function deleteEntry(id) {
+  if(!confirm('この記録を削除しますか？')) return;
+  entries = entries.filter(e => e.id !== id);
+  saveData(); updateHeader(); renderHistory(); renderRecent();
+  showToast('削除しました', 'var(--red)');
+}
+
+function updateHeader() {
+  document.getElementById('h-sessions').textContent = entries.length;
+  const total = entries.reduce((a,e) => a + e.points, 0);
+  const el = document.getElementById('h-total');
+  el.textContent = fmtPt(total);
+  el.style.color = total >= 0 ? 'var(--gold)' : 'var(--red)';
+  if(entries.length > 0) {
+    document.getElementById('h-rank').textContent = entries[0].rank;
+    document.getElementById('h-rank').style.color = RANK_COLORS[entries[0].rank] || 'var(--text2)';
+  } else {
+    document.getElementById('h-rank').textContent = '—';
+  }
+}
+
+function rankBadge(r) { return `<span class="rank-badge rank-${r}">${r}</span>`; }
+
+function renderRecent() {
+  const wrap = document.getElementById('recent-wrap');
+  if(entries.length === 0) { wrap.innerHTML = ''; return; }
+  const cards = entries.slice(0,5).map(e => `
+    <div class="entry-card">
+      <div class="entry-card-top">
+        <div class="entry-card-left"><span class="entry-card-date">${e.date}</span>${rankBadge(e.rank)}</div>
+        <span class="entry-card-pts ${e.points>=0?'pos':'neg'}">${fmtPt(e.points)}</span>
+      </div>
+      ${e.memo ? `<div class="entry-card-memo">${e.memo.slice(0,60)}${e.memo.length>60?'…':''}</div>` : ''}
+    </div>`).join('');
+  wrap.innerHTML = `<div style="font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--text2);margin-bottom:10px;">RECENT</div><div class="entry-cards">${cards}</div>`;
+}
+
+function renderHistory() {
+  const qd = (document.getElementById('search-d')?.value || '').toLowerCase();
+  const qm = (document.getElementById('search-m')?.value || '').toLowerCase();
+  const q  = qd || qm;
+  const list = q ? entries.filter(e => (e.memo||'').toLowerCase().includes(q) || e.rank.toLowerCase().includes(q)) : entries;
+
+  const dtable = document.getElementById('history-table-d');
+  if(dtable) {
+    dtable.innerHTML = list.length === 0
+      ? `<div class="empty-state"><div class="icon">📋</div><div>記録がありません</div></div>`
+      : `<table><thead><tr><th>日付</th><th>ランク</th><th>ポイント</th><th>メモ</th><th></th></tr></thead><tbody>
+          ${list.map(e => `<tr>
+            <td class="date-cell">${e.date}</td>
+            <td>${rankBadge(e.rank)}</td>
+            <td class="${e.points>=0?'point-pos':'point-neg'}">${fmtPt(e.points)}</td>
+            <td class="memo-cell" style="cursor:${e.memo?'pointer':'default'};" onclick="${e.memo?`openModal(${e.id})`:''}">
+              ${e.memo ? e.memo.slice(0,40)+(e.memo.length>40?'…':'') : '—'}
+            </td>
+            <td><button class="btn btn-danger" onclick="deleteEntry(${e.id})">削除</button></td>
+          </tr>`).join('')}
+        </tbody></table>`;
+  }
+
+  const mcards = document.getElementById('history-cards-m');
+  if(mcards) {
+    mcards.innerHTML = list.length === 0
+      ? `<div class="empty-state"><div class="icon">📋</div><div>記録がありません</div></div>`
+      : `<div class="entry-cards">${list.map(e => `
+          <div class="entry-card">
+            <div class="entry-card-top">
+              <div class="entry-card-left"><span class="entry-card-date">${e.date}</span>${rankBadge(e.rank)}</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="entry-card-pts ${e.points>=0?'pos':'neg'}">${fmtPt(e.points)}</span>
+                <button class="btn btn-danger" onclick="deleteEntry(${e.id})">削除</button>
+              </div>
+            </div>
+            ${e.memo ? `<div class="entry-card-memo" onclick="openModal(${e.id})" style="cursor:pointer;">${e.memo.slice(0,80)}${e.memo.length>80?'…':''}</div>` : ''}
+          </div>`).join('')}</div>`;
+  }
+}
+
+function openModal(id) {
+  const e = entries.find(x => x.id === id);
+  if(!e || !e.memo) return;
+  document.getElementById('modal-title').textContent = `${e.date} — ${e.rank}`;
+  document.getElementById('modal-meta').textContent  = `ポイント: ${fmtPt(e.points)}`;
+  document.getElementById('modal-memo').textContent  = e.memo;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if(e.target === document.getElementById('modal')) closeModal(); });
+
+function renderCharts() {
+  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+  const total  = entries.reduce((a,e) => a+e.points, 0);
+  const wins   = entries.filter(e => e.points > 0).length;
+  const avg    = entries.length ? +(total/entries.length).toFixed(1) : 0;
+  const best   = entries.length ? Math.max(...entries.map(e=>e.points)) : 0;
+
+  document.getElementById('stat-row').innerHTML = `
+    <div class="stat-card" style="--accent:var(--teal);"><div class="stat-label">総ポイント</div><div class="stat-val ${total>=0?'up':'down'}">${fmtPt(total)}</div><div class="stat-sub">${entries.length} 試合</div></div>
+    <div class="stat-card" style="--accent:var(--gold);"><div class="stat-label">勝率</div><div class="stat-val gold">${entries.length?Math.round(wins/entries.length*100):0}%</div><div class="stat-sub">+PT: ${wins}/${entries.length}</div></div>
+    <div class="stat-card" style="--accent:var(--purple);"><div class="stat-label">平均PT</div><div class="stat-val ${avg>=0?'up':'down'}">${avg>=0?'+':''}${avg}</div><div class="stat-sub">per session</div></div>
+    <div class="stat-card" style="--accent:var(--red);"><div class="stat-label">ベスト</div><div class="stat-val up">+${best}</div><div class="stat-sub">best session</div></div>`;
+
+  const labels = sorted.map(e => e.date.slice(5));
+  let cum = 0;
+  const cumData = sorted.map(e => { cum += e.points; return cum; });
+
+  // 昇格ポイントを検出（ランクが前回より上位になった瞬間）
+  const promotions = [];
+  for(let i = 1; i < sorted.length; i++) {
+    const prevIdx = RANKS.indexOf(sorted[i-1].rank);
+    const currIdx = RANKS.indexOf(sorted[i].rank);
+    if(currIdx > prevIdx) {
+      promotions.push({ index: i, rank: sorted[i].rank, date: sorted[i].date });
+    }
+  }
+
+  // カスタムプラグイン：昇格縦線＋ラベル
+  const promotionPlugin = {
+    id: 'promotionLines',
+    afterDraw(chart) {
+      if(!promotions.length) return;
+      const { ctx, scales: { x, y } } = chart;
+      promotions.forEach(p => {
+        const xPos = x.getPixelForValue(p.index);
+        if(xPos < x.left || xPos > x.right) return;
+        const color = RANK_COLORS[p.rank] || '#ffffff';
+
+        // 縦線
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.8;
+        ctx.moveTo(xPos, y.top);
+        ctx.lineTo(xPos, y.bottom);
+        ctx.stroke();
+
+        // ラベル背景＋テキスト
+        ctx.globalAlpha = 1;
+        ctx.setLineDash([]);
+        ctx.font = 'bold 11px Rajdhani, sans-serif';
+        ctx.textAlign = 'center';
+        const label = '▲ ' + p.rank;
+        const tw = ctx.measureText(label).width;
+        const lx = xPos, ly = y.top + 6;
+        const pad = 4;
+        ctx.fillStyle = 'rgba(11,12,16,0.85)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(lx - tw/2 - pad, ly - 10, tw + pad*2, 18, 3);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fillText(label, lx, ly + 4);
+        ctx.restore();
+      });
+    }
+  };
+
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('chart-line'), {
+    type:'line',
+    data:{ labels, datasets:[{ data:cumData, borderColor:'#00e5c8', backgroundColor:'rgba(0,229,200,0.06)', pointBackgroundColor:cumData.map((_,i)=>sorted[i].points>=0?'#00e5c8':'#e84545'), pointRadius:4, tension:0.3, fill:true }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout: { padding: { top: 28 } },
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ticks:{color:'#555978',font:{size:10},maxRotation:45},grid:{color:'rgba(46,49,71,0.5)'}},
+        y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}
+      }
+    },
+    plugins: [promotionPlugin]
+  });
+
+  const rankData = {};
+  entries.forEach(e => { if(!rankData[e.rank]) rankData[e.rank]=[]; rankData[e.rank].push(e.points); });
+  const rL = RANKS.filter(r=>rankData[r]);
+  const rA = rL.map(r => Math.round(rankData[r].reduce((a,v)=>a+v,0)/rankData[r].length));
+
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('chart-bar'), {
+    type:'bar', data:{labels:rL, datasets:[{data:rA, backgroundColor:rL.map(r=>RANK_COLORS[r]+'bb'), borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#555978',font:{size:10}},grid:{display:false}}, y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}}}
+  });
+
+  const dayMap={}, dayNames=['日','月','火','水','木','金','土'];
+  entries.forEach(e=>{const d=new Date(e.date).getDay();if(!dayMap[d])dayMap[d]=[];dayMap[d].push(e.points);});
+  const dayData=dayNames.map((_,i)=>dayMap[i]?Math.round(dayMap[i].reduce((a,v)=>a+v,0)/dayMap[i].length):0);
+
+  if(dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('chart-daily'), {
+    type:'bar', data:{labels:dayNames, datasets:[{data:dayData, backgroundColor:dayData.map(v=>v>=0?'rgba(0,229,200,0.7)':'rgba(232,69,69,0.7)'), borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#555978',font:{size:12}},grid:{display:false}}, y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}}}
+  });
+}
+
+function renderMemoLog() {
+  const wrap = document.getElementById('memo-log');
+  const wm   = entries.filter(e=>e.memo);
+  wrap.innerHTML = wm.length === 0
+    ? `<div style="color:var(--text3);font-size:13px;">メモ付きの記録がありません</div>`
+    : wm.slice(0,10).map(e=>`
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="flex-shrink:0;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${e.date}</div>${rankBadge(e.rank)}</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;flex:1;">${e.memo}</div>
+        </div>`).join('');
+}
+
+/* ── API KEY ── */
+function getApiKey() { return localStorage.getItem('apex_apikey') || ''; }
+
+function saveApiKey() {
+  const val = document.getElementById('apikey-input').value.trim();
+  if(!val) { showToast('キーを入力してください', 'var(--red)'); return; }
+  if(!val.startsWith('sk-ant-')) { showToast('正しいキー形式ではありません（sk-ant-で始まる）', 'var(--red)'); return; }
+  localStorage.setItem('apex_apikey', val);
+  renderKeyStatus();
+  showToast('APIキーを保存しました ✓', 'var(--teal)');
+}
+
+function clearApiKey() {
+  if(!confirm('APIキーを削除しますか？')) return;
+  localStorage.removeItem('apex_apikey');
+  document.getElementById('apikey-input').value = '';
+  renderKeyStatus();
+  showToast('APIキーを削除しました', 'var(--red)');
+}
+
+function toggleKeyVisibility() {
+  const inp = document.getElementById('apikey-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function renderKeyStatus() {
+  const key = getApiKey();
+  const el  = document.getElementById('key-status');
+  if(!el) return;
+  if(key) {
+    const masked = key.slice(0,12) + '••••••••••••' + key.slice(-4);
+    el.innerHTML = `<span style="color:var(--teal);">✓ 設定済み: ${masked}</span>`;
+    document.getElementById('apikey-input').placeholder = masked;
+  } else {
+    el.innerHTML = `<span style="color:var(--text3);">未設定 — AI分析を使うにはキーが必要です</span>`;
+  }
+}
+
+function checkApiKeyStatus() {
+  const key = getApiKey();
+  const btn = document.getElementById('btn-analyze');
+  if(!btn) return;
+  if(!key) {
+    btn.title = 'APIキーが未設定です（設定タブで登録）';
+  } else {
+    btn.title = '';
+  }
+}
+
+async function runAnalysis() {
+  const apiKey = getApiKey();
+  if(!apiKey) {
+    showToast('APIキーが未設定です', 'var(--red)');
+    setTimeout(() => switchTab('settings'), 800);
+    return;
+  }
+  const wm = entries.filter(e=>e.memo);
+  if(wm.length === 0) { showToast('メモがありません', 'var(--red)'); return; }
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true; btn.textContent = '分析中…';
+  const rd = document.getElementById('analysis-result');
+  rd.style.display = 'block';
+  rd.innerHTML = `<div class="analysis-result loading"><div class="loader"></div>AIが戦績を分析しています...</div>`;
+  const memoText = wm.map(e=>`[${e.date}/${e.rank}/${fmtPt(e.points)}pt]\n${e.memo}`).join('\n\n');
+  const winRate  = Math.round(entries.filter(e=>e.points>0).length/entries.length*100);
+  const prompt   = `あなたはApex Legendsのコーチです。以下のプレイヤーの戦績メモを分析して日本語で回答してください。\n\n## 統計\n- 総セッション: ${entries.length} 勝率: ${winRate}%\n\n## 戦績メモ\n${memoText}\n\n以下のJSON形式のみで返してください:\n{"summary":"全体的な傾向の要約（3文）","weaknesses":["苦手1","苦手2","苦手3"],"strengths":["得意1","得意2"],"tips":["アドバイス1","アドバイス2","アドバイス3"],"focus":"今週の最重要課題（1文）"}`;
+  try {
+    const res  = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    if(!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const text = data.content?.map(c=>c.text||'').join('')||'';
+    const p    = JSON.parse(text.replace(/```json|```/g,'').trim());
+    rd.innerHTML = `
+      <div style="margin-bottom:14px;"><div class="analysis-section"><h4 style="color:var(--text2);">📊 総評</h4><p style="font-size:13px;line-height:1.8;color:var(--text2);background:var(--bg3);border-radius:4px;padding:12px;margin-top:6px;">${p.summary}</p></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;" class="analysis-grid">
+        <div class="analysis-section"><h4 style="color:var(--red);">⚠ 苦手・課題</h4><div class="tag-list">${p.weaknesses.map(w=>`<span class="tag tag-weak">${w}</span>`).join('')}</div></div>
+        <div class="analysis-section"><h4 style="color:var(--teal);">✓ 得意・強み</h4><div class="tag-list">${p.strengths.map(s=>`<span class="tag tag-strong">${s}</span>`).join('')}</div></div>
+      </div>
+      <div class="analysis-section" style="margin-bottom:10px;"><h4 style="color:var(--gold);">💡 改善アドバイス</h4><div class="tag-list">${p.tips.map(t=>`<span class="tag tag-tip">${t}</span>`).join('')}</div></div>
+      <div style="background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;padding:12px;"><span style="font-family:var(--font-head);font-size:11px;letter-spacing:1px;color:var(--red);">FOCUS</span><p style="font-size:13px;color:var(--text);margin-top:4px;">${p.focus}</p></div>`;
+    showToast('分析完了 ✓', 'var(--teal)');
+  } catch(err) {
+    rd.innerHTML = `<div class="analysis-result" style="color:var(--red);">分析に失敗しました。\n${err.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = 'ANALYZE';
+}
+
+/* ── EXPORT / IMPORT ── */
+function buildExportObj() {
+  return { app:'apex-tracker', version:1, exportedAt:new Date().toISOString(), count:entries.length, entries };
+}
+
+function exportJSON() {
+  if(entries.length === 0) { showToast('データがありません', 'var(--red)'); return; }
+  const blob = new Blob([JSON.stringify(buildExportObj(), null, 2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `apex-tracker-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`${entries.length}件をエクスポートしました ✓`, 'var(--teal)');
+}
+
+async function exportClipboard() {
+  if(entries.length === 0) { showToast('データがありません', 'var(--red)'); return; }
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(buildExportObj(), null, 2));
+    showToast('クリップボードにコピーしました ✓', 'var(--teal)');
+  } catch { showToast('コピーに失敗しました', 'var(--red)'); }
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj      = JSON.parse(e.target.result);
+      const imported = Array.isArray(obj) ? obj : (obj.entries || []);
+      if(!Array.isArray(imported) || imported.length === 0) throw new Error('データが見つかりません');
+      const existingIds = new Set(entries.map(x => x.id));
+      const newItems    = imported.filter(x => x.id && !existingIds.has(x.id));
+      entries = [...entries, ...newItems].sort((a,b) => b.date.localeCompare(a.date));
+      saveData(); updateHeader(); renderDataPreview();
+      showToast(`${newItems.length}件を追加しました ✓`, 'var(--teal)');
+    } catch(err) { showToast('読み込みに失敗: ' + err.message, 'var(--red)'); }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAll() {
+  if(!confirm(`${entries.length}件のデータをすべて削除します。\nこの操作は取り消せません。`)) return;
+  entries = [];
+  saveData(); updateHeader(); renderRecent(); renderDataPreview();
+  showToast('全データを削除しました', 'var(--red)');
+}
+
+function renderDataPreview() {
+  document.getElementById('preview-meta').textContent = `${entries.length} 件のデータ`;
+  document.getElementById('json-preview').textContent = entries.length === 0 ? '（データなし）' : JSON.stringify(buildExportObj(), null, 2);
+}
+
+updateHeader();
+renderRecent();
+renderKeyStatus();
+</script>
+</body>
+</html>
