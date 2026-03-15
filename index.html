@@ -638,17 +638,29 @@ function renderCharts() {
     <div class="stat-card" style="--accent:var(--purple);"><div class="stat-label">平均PT</div><div class="stat-val ${avg>=0?'up':'down'}">${avg>=0?'+':''}${avg}</div><div class="stat-sub">per session</div></div>
     <div class="stat-card" style="--accent:var(--red);"><div class="stat-label">ベスト</div><div class="stat-val up">+${best}</div><div class="stat-sub">best session</div></div>`;
 
-  const labels = sorted.map(e => e.date.slice(5));
+  // 同じ日のポイントを合算して日別データに集約
+  const dayMap = {};
+  const dayRankMap = {}; // 各日の最後のランクを記録
+  sorted.forEach(e => {
+    if(!dayMap[e.date]) dayMap[e.date] = 0;
+    dayMap[e.date] += e.points;
+    dayRankMap[e.date] = e.rank; // 同日複数記録は最後のランクを使用
+  });
+  const days = Object.keys(dayMap).sort();
+  const labels = days.map(d => d.slice(5));
   let cum = 0;
-  const cumData = sorted.map(e => { cum += e.points; return cum; });
+  const cumData = days.map(d => { cum += dayMap[d]; return cum; });
+  const dayPoints = days.map(d => dayMap[d]); // 各日の増減（点の色用）
 
-  // 昇格ポイントを検出（ランクが前回より上位になった瞬間）
+  // 昇格ポイントを検出（日別で前日よりランクが上がった日）
   const promotions = [];
-  for(let i = 1; i < sorted.length; i++) {
-    const prevIdx = RANKS.indexOf(sorted[i-1].rank);
-    const currIdx = RANKS.indexOf(sorted[i].rank);
+  for(let i = 1; i < days.length; i++) {
+    const prevRank = dayRankMap[days[i-1]];
+    const currRank = dayRankMap[days[i]];
+    const prevIdx = RANKS.indexOf(prevRank);
+    const currIdx = RANKS.indexOf(currRank);
     if(currIdx > prevIdx) {
-      promotions.push({ index: i, rank: sorted[i].rank, date: sorted[i].date });
+      promotions.push({ index: i, rank: currRank, date: days[i] });
     }
   }
 
@@ -700,7 +712,7 @@ function renderCharts() {
   if(lineChart) lineChart.destroy();
   lineChart = new Chart(document.getElementById('chart-line'), {
     type:'line',
-    data:{ labels, datasets:[{ data:cumData, borderColor:'#00e5c8', backgroundColor:'rgba(0,229,200,0.06)', pointBackgroundColor:cumData.map((_,i)=>sorted[i].points>=0?'#00e5c8':'#e84545'), pointRadius:4, tension:0.3, fill:true }]},
+    data:{ labels, datasets:[{ data:cumData, borderColor:'#00e5c8', backgroundColor:'rgba(0,229,200,0.06)', pointBackgroundColor:dayPoints.map(v=>v>=0?'#00e5c8':'#e84545'), pointRadius:4, tension:0.3, fill:true }]},
     options:{
       responsive:true, maintainAspectRatio:false,
       layout: { padding: { top: 28 } },
