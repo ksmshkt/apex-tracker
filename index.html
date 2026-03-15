@@ -743,9 +743,9 @@ function renderCharts() {
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#555978',font:{size:9},maxRotation:30}}, grid:{display:false}, y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}}}
   });
 
-  const dayMap={}, dayNames=['日','月','火','水','木','金','土'];
-  entries.forEach(e=>{const d=new Date(e.date).getDay();if(!dayMap[d])dayMap[d]=[];dayMap[d].push(e.points);});
-  const dayData=dayNames.map((_,i)=>dayMap[i]?Math.round(dayMap[i].reduce((a,v)=>a+v,0)/dayMap[i].length):0);
+  const wdayMap={}, dayNames=['日','月','火','水','木','金','土'];
+  entries.forEach(e=>{const d=new Date(e.date).getDay();if(!wdayMap[d])wdayMap[d]=[];wdayMap[d].push(e.points);});
+  const dayData=dayNames.map((_,i)=>wdayMap[i]?Math.round(wdayMap[i].reduce((a,v)=>a+v,0)/wdayMap[i].length):0);
 
   if(dailyChart) dailyChart.destroy();
   dailyChart = new Chart(document.getElementById('chart-daily'), {
