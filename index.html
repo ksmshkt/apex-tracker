@@ -305,7 +305,13 @@
   <div id="view-chart" class="view">
     <div class="stat-row" id="stat-row"></div>
     <div class="chart-card full" style="margin-bottom:14px;">
-      <h3>ポイント推移</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h3 style="margin-bottom:0;">ポイント推移</h3>
+        <div style="display:flex;gap:4px;">
+          <button id="toggle-daily" onclick="setChartMode('daily')" style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:1px;padding:5px 12px;border-radius:4px;border:1px solid var(--border-bright);background:var(--red);color:white;cursor:pointer;transition:all 0.15s;">日別</button>
+          <button id="toggle-record" onclick="setChartMode('record')" style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:1px;padding:5px 12px;border-radius:4px;border:1px solid var(--border-bright);background:var(--bg3);color:var(--text3);cursor:pointer;transition:all 0.15s;">記録別</button>
+        </div>
+      </div>
       <div style="position:relative;height:240px;"><canvas id="chart-line"></canvas></div>
     </div>
     <div class="chart-row">
@@ -528,6 +534,8 @@ function addEntry() {
   btn.style.color = 'var(--teal)';
   btn.style.borderColor = 'var(--border)';
   renderRecent();
+  // グラフタブが開いていれば自動再描画
+  if(document.getElementById('view-chart').classList.contains('active')) renderCharts();
   showToast('記録しました ✓', 'var(--teal)');
 }
 
@@ -535,6 +543,7 @@ function deleteEntry(id) {
   if(!confirm('この記録を削除しますか？')) return;
   entries = entries.filter(e => e.id !== id);
   saveData(); updateHeader(); renderHistory(); renderRecent();
+  if(document.getElementById('view-chart').classList.contains('active')) renderCharts();
   showToast('削除しました', 'var(--red)');
 }
 
@@ -625,46 +634,91 @@ function openModal(id) {
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', e => { if(e.target === document.getElementById('modal')) closeModal(); });
 
-function renderCharts() {
-  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-  const total  = entries.reduce((a,e) => a+e.points, 0);
-  const wins   = entries.filter(e => e.points > 0).length;
-  const avg    = entries.length ? +(total/entries.length).toFixed(1) : 0;
-  const best   = entries.length ? Math.max(...entries.map(e=>e.points)) : 0;
+let chartMode = 'daily'; // 'daily' or 'record'
 
-  document.getElementById('stat-row').innerHTML = `
-    <div class="stat-card" style="--accent:var(--teal);"><div class="stat-label">総ポイント</div><div class="stat-val ${total>=0?'up':'down'}">${fmtPt(total)}</div><div class="stat-sub">${entries.length} 試合</div></div>
-    <div class="stat-card" style="--accent:var(--gold);"><div class="stat-label">勝率</div><div class="stat-val gold">${entries.length?Math.round(wins/entries.length*100):0}%</div><div class="stat-sub">+PT: ${wins}/${entries.length}</div></div>
-    <div class="stat-card" style="--accent:var(--purple);"><div class="stat-label">平均PT</div><div class="stat-val ${avg>=0?'up':'down'}">${avg>=0?'+':''}${avg}</div><div class="stat-sub">per session</div></div>
-    <div class="stat-card" style="--accent:var(--red);"><div class="stat-label">ベスト</div><div class="stat-val up">+${best}</div><div class="stat-sub">best session</div></div>`;
+function setChartMode(mode) {
+  chartMode = mode;
+  const btnD = document.getElementById('toggle-daily');
+  const btnR = document.getElementById('toggle-record');
+  if(btnD && btnR) {
+    btnD.style.background = mode === 'daily' ? 'var(--red)' : 'var(--bg3)';
+    btnD.style.color      = mode === 'daily' ? 'white' : 'var(--text3)';
+    btnR.style.background = mode === 'record' ? 'var(--red)' : 'var(--bg3)';
+    btnR.style.color      = mode === 'record' ? 'white' : 'var(--text3)';
+  }
+  renderLineChart();
+}
 
-  // 同じ日のポイントを合算して日別データに集約
-  const dayMap = {};
-  const dayRankMap = {}; // 各日の最後のランクを記録
-  sorted.forEach(e => {
-    if(!dayMap[e.date]) dayMap[e.date] = 0;
-    dayMap[e.date] += e.points;
-    dayRankMap[e.date] = e.rank; // 同日複数記録は最後のランクを使用
-  });
-  const days = Object.keys(dayMap).sort();
-  const labels = days.map(d => d.slice(5));
-  let cum = 0;
-  const cumData = days.map(d => { cum += dayMap[d]; return cum; });
-  const dayPoints = days.map(d => dayMap[d]); // 各日の増減（点の色用）
+function buildTooltipOptions(labelsArr, pointsArr, ranksArr, cumArr) {
+  return {
+    callbacks: {
+      title: ctx => {
+        const i = ctx[0].dataIndex;
+        return `${labelsArr[i]} (${ranksArr[i]})`;
+      },
+      label: ctx => {
+        const i = ctx.dataIndex;
+        return [`累積: ${fmtPt(cumArr[i])}`, `変動: ${fmtPt(pointsArr[i])}`];
+      }
+    },
+    backgroundColor: 'rgba(19,20,26,0.95)',
+    titleColor: ctx => rankColor(ranksArr[ctx[0]?.dataIndex ?? 0]) || '#00e5c8',
+    bodyColor: '#8b8fa8',
+    borderColor: '#2e3147',
+    borderWidth: 1,
+    padding: 10,
+    cornerRadius: 6
+  };
+}
 
-  // 昇格ポイントを検出（日別で前日よりランクが上がった日）
-  const promotions = [];
-  for(let i = 1; i < days.length; i++) {
-    const prevRank = dayRankMap[days[i-1]];
-    const currRank = dayRankMap[days[i]];
-    const prevIdx = RANKS.indexOf(prevRank);
-    const currIdx = RANKS.indexOf(currRank);
-    if(currIdx > prevIdx) {
-      promotions.push({ index: i, rank: currRank, date: days[i] });
+function renderLineChart() {
+  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  if(!sorted.length) return;
+
+  let labels, cumData, pointsArr, ranksArr, promotions;
+
+  if(chartMode === 'daily') {
+    // 日別集計
+    const dayMap = {}, dayRankMap = {};
+    sorted.forEach(e => {
+      if(!dayMap[e.date]) dayMap[e.date] = 0;
+      dayMap[e.date] += e.points;
+      dayRankMap[e.date] = e.rank;
+    });
+    const days = Object.keys(dayMap).sort();
+    labels    = days.map(d => d.slice(5));
+    pointsArr = days.map(d => dayMap[d]);
+    ranksArr  = days.map(d => dayRankMap[d]);
+    let cum = 0;
+    cumData = days.map(d => { cum += dayMap[d]; return cum; });
+
+    // 昇格検出
+    promotions = [];
+    for(let i = 1; i < days.length; i++) {
+      const pi = RANKS.indexOf(dayRankMap[days[i-1]]);
+      const ci = RANKS.indexOf(dayRankMap[days[i]]);
+      if(ci > pi) promotions.push({ index: i, rank: dayRankMap[days[i]] });
+    }
+
+  } else {
+    // 記録別（1レコード=1点）
+    labels    = sorted.map(e => e.date.slice(5));
+    pointsArr = sorted.map(e => e.points);
+    ranksArr  = sorted.map(e => e.rank);
+    let cum = 0;
+    cumData = sorted.map(e => { cum += e.points; return cum; });
+
+    // 昇格検出
+    promotions = [];
+    for(let i = 1; i < sorted.length; i++) {
+      const pi = RANKS.indexOf(sorted[i-1].rank);
+      const ci = RANKS.indexOf(sorted[i].rank);
+      if(ci > pi) promotions.push({ index: i, rank: sorted[i].rank });
     }
   }
 
-  // カスタムプラグイン：昇格縦線＋ラベル
+  const pointColors = ranksArr.map(r => rankColor(r) || '#00e5c8');
+
   const promotionPlugin = {
     id: 'promotionLines',
     afterDraw(chart) {
@@ -674,8 +728,6 @@ function renderCharts() {
         const xPos = x.getPixelForValue(p.index);
         if(xPos < x.left || xPos > x.right) return;
         const color = rankColor(p.rank) || '#ffffff';
-
-        // 縦線
         ctx.save();
         ctx.beginPath();
         ctx.setLineDash([4, 3]);
@@ -685,16 +737,13 @@ function renderCharts() {
         ctx.moveTo(xPos, y.top);
         ctx.lineTo(xPos, y.bottom);
         ctx.stroke();
-
-        // ラベル背景＋テキスト
         ctx.globalAlpha = 1;
         ctx.setLineDash([]);
         ctx.font = 'bold 11px Rajdhani, sans-serif';
         ctx.textAlign = 'center';
         const label = '▲ ' + p.rank;
         const tw = ctx.measureText(label).width;
-        const lx = xPos, ly = y.top + 6;
-        const pad = 4;
+        const lx = xPos, ly = y.top + 6, pad = 4;
         ctx.fillStyle = 'rgba(11,12,16,0.85)';
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
@@ -711,21 +760,53 @@ function renderCharts() {
 
   if(lineChart) lineChart.destroy();
   lineChart = new Chart(document.getElementById('chart-line'), {
-    type:'line',
-    data:{ labels, datasets:[{ data:cumData, borderColor:'#00e5c8', backgroundColor:'rgba(0,229,200,0.06)', pointBackgroundColor:dayPoints.map(v=>v>=0?'#00e5c8':'#e84545'), pointRadius:4, tension:0.3, fill:true }]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
+    type: 'line',
+    data: { labels, datasets:[{
+      data: cumData,
+      borderColor: '#00e5c8',
+      backgroundColor: 'rgba(0,229,200,0.06)',
+      pointBackgroundColor: pointColors,
+      pointBorderColor: pointColors,
+      pointRadius: 6,
+      pointHoverRadius: 9,
+      tension: 0.3, fill: true
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
       layout: { padding: { top: 28 } },
-      plugins:{ legend:{display:false} },
-      scales:{
-        x:{ticks:{color:'#555978',font:{size:10},maxRotation:45},grid:{color:'rgba(46,49,71,0.5)'}},
-        y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}
+      plugins: {
+        legend: { display: false },
+        tooltip: buildTooltipOptions(
+          chartMode === 'daily'
+            ? sorted.reduce((acc, e) => { if(!acc.includes(e.date.slice(5))) acc.push(e.date.slice(5)); return acc; }, [])
+            : labels,
+          pointsArr, ranksArr, cumData
+        )
+      },
+      scales: {
+        x: { ticks:{ color:'#555978', font:{size:10}, maxRotation:45 }, grid:{ color:'rgba(46,49,71,0.5)' } },
+        y: { ticks:{ color:'#555978', font:{size:10}, callback:v=>fmtPt(v) }, grid:{ color:'rgba(46,49,71,0.5)' } }
       }
     },
     plugins: [promotionPlugin]
   });
+}
 
-  // ランクをtier単位で集計
+function renderCharts() {
+  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  const total  = entries.reduce((a,e) => a+e.points, 0);
+  const wins   = entries.filter(e => e.points > 0).length;
+  const avg    = entries.length ? +(total/entries.length).toFixed(1) : 0;
+  const best   = entries.length ? Math.max(...entries.map(e=>e.points)) : 0;
+
+  document.getElementById('stat-row').innerHTML = `
+    <div class="stat-card" style="--accent:var(--teal);"><div class="stat-label">総ポイント</div><div class="stat-val ${total>=0?'up':'down'}">${fmtPt(total)}</div><div class="stat-sub">${entries.length} 試合</div></div>
+    <div class="stat-card" style="--accent:var(--gold);"><div class="stat-label">勝率</div><div class="stat-val gold">${entries.length?Math.round(wins/entries.length*100):0}%</div><div class="stat-sub">+PT: ${wins}/${entries.length}</div></div>
+    <div class="stat-card" style="--accent:var(--purple);"><div class="stat-label">平均PT</div><div class="stat-val ${avg>=0?'up':'down'}">${avg>=0?'+':''}${avg}</div><div class="stat-sub">per session</div></div>
+    <div class="stat-card" style="--accent:var(--red);"><div class="stat-label">ベスト</div><div class="stat-val up">+${best}</div><div class="stat-sub">best session</div></div>`;
+
+  renderLineChart();
+
   const TIER_ORDER = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Apex Predator'];
   const tierData = {};
   entries.forEach(e => {
@@ -739,8 +820,16 @@ function renderCharts() {
 
   if(barChart) barChart.destroy();
   barChart = new Chart(document.getElementById('chart-bar'), {
-    type:'bar', data:{labels:rL, datasets:[{data:rA, backgroundColor:rL.map(r=>rankColor(r)+'bb'), borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#555978',font:{size:9},maxRotation:30}}, grid:{display:false}, y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}}}
+    type:'bar',
+    data:{ labels:rL, datasets:[{ data:rA, backgroundColor:rL.map(r=>rankColor(r)+'bb'), borderRadius:3 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#555978', font:{size:9}, maxRotation:30 }, grid:{ display:false } },
+        y:{ ticks:{ color:'#555978', font:{size:10}, callback:v=>fmtPt(v) }, grid:{ color:'rgba(46,49,71,0.5)' } }
+      }
+    }
   });
 
   const wdayMap={}, dayNames=['日','月','火','水','木','金','土'];
@@ -749,8 +838,16 @@ function renderCharts() {
 
   if(dailyChart) dailyChart.destroy();
   dailyChart = new Chart(document.getElementById('chart-daily'), {
-    type:'bar', data:{labels:dayNames, datasets:[{data:dayData, backgroundColor:dayData.map(v=>v>=0?'rgba(0,229,200,0.7)':'rgba(232,69,69,0.7)'), borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#555978',font:{size:12}},grid:{display:false}}, y:{ticks:{color:'#555978',font:{size:10},callback:v=>fmtPt(v)},grid:{color:'rgba(46,49,71,0.5)'}}}}
+    type:'bar',
+    data:{ labels:dayNames, datasets:[{ data:dayData, backgroundColor:dayData.map(v=>v>=0?'rgba(0,229,200,0.7)':'rgba(232,69,69,0.7)'), borderRadius:3 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#555978', font:{size:12} }, grid:{ display:false } },
+        y:{ ticks:{ color:'#555978', font:{size:10}, callback:v=>fmtPt(v) }, grid:{ color:'rgba(46,49,71,0.5)' } }
+      }
+    }
   });
 }
 
