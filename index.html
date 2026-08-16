@@ -150,24 +150,6 @@
   .stat-val.up { color: var(--teal); } .stat-val.down { color: var(--red); } .stat-val.gold { color: var(--gold); }
   .stat-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
 
-  /* ANALYSIS */
-  .analysis-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 14px; position: relative; overflow: hidden; }
-  .analysis-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,var(--purple) 0%,var(--teal) 100%); }
-  .analysis-card h2 { font-family: var(--font-head); font-size: 17px; font-weight: 700; letter-spacing: 2px; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .ai-badge { font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 2px; background: rgba(155,114,255,0.2); color: var(--purple); border: 1px solid rgba(155,114,255,0.3); font-family: var(--font-head); }
-  .analysis-card .sub { font-size: 12px; color: var(--text3); margin-bottom: 16px; }
-  .analysis-result { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-top: 14px; font-size: 14px; line-height: 1.8; color: var(--text2); min-height: 60px; }
-  .analysis-result.loading { display: flex; align-items: center; gap: 10px; color: var(--text3); }
-  .loader { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .analysis-section { margin-bottom: 12px; }
-  .analysis-section h4 { font-family: var(--font-head); font-size: 13px; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; }
-  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .tag { font-size: 12px; padding: 4px 10px; border-radius: 3px; font-family: var(--font-head); font-weight: 600; letter-spacing: 0.5px; }
-  .tag-weak   { background: rgba(232,69,69,0.15);  color: var(--red);    border: 1px solid rgba(232,69,69,0.3); }
-  .tag-strong { background: rgba(0,229,200,0.15);  color: var(--teal);   border: 1px solid rgba(0,229,200,0.3); }
-  .tag-tip    { background: rgba(247,201,72,0.10); color: var(--gold);   border: 1px solid rgba(247,201,72,0.25); }
-
   /* MODAL */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
   .modal-overlay.open { display: flex; }
@@ -196,7 +178,6 @@
     .chart-row { grid-template-columns: 1fr; }
     .desktop-table { display: none; }
     .mobile-cards { display: block; }
-    .analysis-grid { grid-template-columns: 1fr !important; }
     .data-actions { flex-direction: column; align-items: stretch; }
     .data-actions .btn, .data-actions .import-label { text-align: center; }
     .search-input { width: 130px; }
@@ -226,9 +207,7 @@
     <button class="tab active" onclick="switchTab('record')">Record</button>
     <button class="tab" onclick="switchTab('history')">History</button>
     <button class="tab" onclick="switchTab('chart')">Chart</button>
-    <button class="tab" onclick="switchTab('analysis')">AI</button>
     <button class="tab" onclick="switchTab('data')">Data</button>
-    <button class="tab" onclick="switchTab('settings')">Settings</button>
   </div>
 
   <!-- RECORD -->
@@ -320,20 +299,6 @@
     </div>
   </div>
 
-  <!-- ANALYSIS -->
-  <div id="view-analysis" class="view">
-    <div class="analysis-card">
-      <h2>AI Analysis <span class="ai-badge">CLAUDE</span></h2>
-      <div class="sub">Analyze your memos to find strengths, weaknesses, and tips</div>
-      <button class="btn btn-primary" onclick="runAnalysis()" id="btn-analyze">ANALYZE</button>
-      <div id="analysis-result" style="display:none;"></div>
-    </div>
-    <div class="analysis-card">
-      <h2 style="font-size:14px;color:var(--text2);">MEMO LOG</h2>
-      <div id="memo-log" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div>
-    </div>
-  </div>
-
   <!-- DATA -->
   <div id="view-data" class="view">
 
@@ -373,44 +338,6 @@
 
   </div>
 
-  <!-- SETTINGS -->
-  <div id="view-settings" class="view">
-    <div class="data-card">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple) 0%,transparent 100%);"></div>
-      <h2>API KEY</h2>
-      <div class="desc">
-        An Anthropic API key is required for AI analysis.<br>
-        The key is saved only in this browser and never sent elsewhere.<br>
-        Get yours at: <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal);">console.anthropic.com</a> (free $5 credit included)
-      </div>
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-group" style="flex:1;min-width:240px;">
-          <label>Anthropic API Key</label>
-          <div style="position:relative;">
-            <input type="password" id="apikey-input" placeholder="sk-ant-api03-…" autocomplete="off" style="width:100%;padding-right:44px;">
-            <button onclick="toggleKeyVisibility()" id="key-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1;">👁</button>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="saveApiKey()" style="flex-shrink:0;">SAVE</button>
-        <button class="btn btn-ghost" onclick="clearApiKey()" style="flex-shrink:0;">Delete</button>
-      </div>
-      <div id="key-status" style="margin-top:12px;font-size:12px;"></div>
-    </div>
-    <div class="data-card">
-      <h2 style="font-size:14px;color:var(--text2);">How to Use</h2>
-      <div style="font-size:13px;color:var(--text3);line-height:2;margin-top:4px;">
-        <div>① Create an account at <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal);">console.anthropic.com</a></div>
-        <div>② Go to "API Keys" → "Create Key"</div>
-        <div>③ Paste the key in the form above and click "SAVE"</div>
-        <div>④ Go to the AI tab and click "ANALYZE"</div>
-      </div>
-      <div style="margin-top:14px;padding:10px 14px;background:rgba(247,201,72,0.07);border:1px solid rgba(247,201,72,0.2);border-radius:6px;font-size:12px;color:var(--gold);line-height:1.7;">
-        ⚠ Keep your API key private. Do not share it with others.<br>
-        Usage costs apply to your Anthropic account (usually a few cents per month).
-      </div>
-    </div>
-  </div>
-
 </div><!-- .app -->
 
 <!-- BOTTOM NAV -->
@@ -424,14 +351,8 @@
   <button class="bnav-item" onclick="switchTab('chart')" id="bnav-chart">
     <svg viewBox="0 0 24 24"><path d="M3 20l5-8 4 5 4-9 5 12" stroke-linecap="round" stroke-linejoin="round"/></svg>Chart
   </button>
-  <button class="bnav-item" onclick="switchTab('analysis')" id="bnav-analysis">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke-linecap="round"/></svg>AI
-  </button>
   <button class="bnav-item" onclick="switchTab('data')" id="bnav-data">
     <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/></svg>Data
-  </button>
-  <button class="bnav-item" onclick="switchTab('settings')" id="bnav-settings">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round"/></svg>Settings
   </button>
 </nav>
 
@@ -482,7 +403,7 @@ function showToast(msg, color) {
 }
 
 function switchTab(id) {
-  const tabs = ['record','history','chart','analysis','data','settings'];
+  const tabs = ['record','history','chart','data'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === id));
   document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
   const nb = document.getElementById('bnav-'+id);
@@ -491,10 +412,8 @@ function switchTab(id) {
   document.getElementById('view-'+id).classList.add('active');
   if(id === 'chart')    renderCharts();
   if(id === 'history')  renderHistory();
-  if(id === 'analysis') { renderMemoLog(); checkApiKeyStatus(); }
   if(id === 'record')   renderRecent();
   if(id === 'data')     renderDataPreview();
-  if(id === 'settings') renderKeyStatus();
 }
 
 let signPositive = true;
@@ -851,116 +770,6 @@ function renderCharts() {
   });
 }
 
-function renderMemoLog() {
-  const wrap = document.getElementById('memo-log');
-  const wm   = entries.filter(e=>e.memo);
-  wrap.innerHTML = wm.length === 0
-    ? `<div style="color:var(--text3);font-size:13px;">No entries with memo</div>`
-    : wm.slice(0,10).map(e=>`
-        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div style="flex-shrink:0;"><div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${e.date}</div>${rankBadge(e.rank)}</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.6;flex:1;">${e.memo}</div>
-        </div>`).join('');
-}
-
-/* ── API KEY ── */
-function getApiKey() { return localStorage.getItem('apex_apikey') || ''; }
-
-function saveApiKey() {
-  const val = document.getElementById('apikey-input').value.trim();
-  if(!val) { showToast('Please enter a key', 'var(--red)'); return; }
-  if(!val.startsWith('sk-ant-')) { showToast('Invalid key format (must start with sk-ant-)', 'var(--red)'); return; }
-  localStorage.setItem('apex_apikey', val);
-  renderKeyStatus();
-  showToast('API key saved ✓', 'var(--teal)');
-}
-
-function clearApiKey() {
-  if(!confirm('Delete API key?')) return;
-  localStorage.removeItem('apex_apikey');
-  document.getElementById('apikey-input').value = '';
-  renderKeyStatus();
-  showToast('API key deleted', 'var(--red)');
-}
-
-function toggleKeyVisibility() {
-  const inp = document.getElementById('apikey-input');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-function renderKeyStatus() {
-  const key = getApiKey();
-  const el  = document.getElementById('key-status');
-  if(!el) return;
-  if(key) {
-    const masked = key.slice(0,12) + '••••••••••••' + key.slice(-4);
-    el.innerHTML = `<span style="color:var(--teal);">✓ Set: ${masked}</span>`;
-    document.getElementById('apikey-input').placeholder = masked;
-  } else {
-    el.innerHTML = `<span style="color:var(--text3);">Not set — API key required for AI analysis</span>`;
-  }
-}
-
-function checkApiKeyStatus() {
-  const key = getApiKey();
-  const btn = document.getElementById('btn-analyze');
-  if(!btn) return;
-  if(!key) {
-    btn.title = 'API key not set (add in Settings tab)';
-  } else {
-    btn.title = '';
-  }
-}
-
-async function runAnalysis() {
-  const apiKey = getApiKey();
-  if(!apiKey) {
-    showToast('API key not set', 'var(--red)');
-    setTimeout(() => switchTab('settings'), 800);
-    return;
-  }
-  const wm = entries.filter(e=>e.memo);
-  if(wm.length === 0) { showToast('No memos found', 'var(--red)'); return; }
-  const btn = document.getElementById('btn-analyze');
-  btn.disabled = true; btn.textContent = 'Analyzing...';
-  const rd = document.getElementById('analysis-result');
-  rd.style.display = 'block';
-  rd.innerHTML = `<div class="analysis-result loading"><div class="loader"></div>AI is analyzing your data...</div>`;
-  const memoText = wm.map(e=>`[${e.date}/${e.rank}/${fmtPt(e.points)}pt]\n${e.memo}`).join('\n\n');
-  const winRate  = Math.round(entries.filter(e=>e.points>0).length/entries.length*100);
-  const prompt   = `You are an Apex Legends coach. Analyze the player's match memos below and reply in English.\n\n## Stats\n- Total sessions: ${entries.length} Win rate: ${winRate}%\n\n## Match Memos\n${memoText}\n\nReply only in this JSON format:\n{"summary":"Overall summary (3 sentences)","weaknesses":["weakness1","weakness2","weakness3"],"strengths":["strength1","strength2"],"tips":["tip1","tip2","tip3"],"focus":"Top priority for this week (1 sentence)"}`;
-  try {
-    const res  = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
-    });
-    if(!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || `HTTP ${res.status}`);
-    }
-    const data = await res.json();
-    const text = data.content?.map(c=>c.text||'').join('')||'';
-    const p    = JSON.parse(text.replace(/```json|```/g,'').trim());
-    rd.innerHTML = `
-      <div style="margin-bottom:14px;"><div class="analysis-section"><h4 style="color:var(--text2);">📊 Summary</h4><p style="font-size:13px;line-height:1.8;color:var(--text2);background:var(--bg3);border-radius:4px;padding:12px;margin-top:6px;">${p.summary}</p></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;" class="analysis-grid">
-        <div class="analysis-section"><h4 style="color:var(--red);">⚠ Weaknesses</h4><div class="tag-list">${p.weaknesses.map(w=>`<span class="tag tag-weak">${w}</span>`).join('')}</div></div>
-        <div class="analysis-section"><h4 style="color:var(--teal);">✓ Strengths</h4><div class="tag-list">${p.strengths.map(s=>`<span class="tag tag-strong">${s}</span>`).join('')}</div></div>
-      </div>
-      <div class="analysis-section" style="margin-bottom:10px;"><h4 style="color:var(--gold);">💡 Tips</h4><div class="tag-list">${p.tips.map(t=>`<span class="tag tag-tip">${t}</span>`).join('')}</div></div>
-      <div style="background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;padding:12px;"><span style="font-family:var(--font-head);font-size:11px;letter-spacing:1px;color:var(--red);">FOCUS</span><p style="font-size:13px;color:var(--text);margin-top:4px;">${p.focus}</p></div>`;
-    showToast('Done ✓', 'var(--teal)');
-  } catch(err) {
-    rd.innerHTML = `<div class="analysis-result" style="color:var(--red);">Analysis failed.\n${err.message}</div>`;
-  }
-  btn.disabled = false; btn.textContent = 'ANALYZE';
-}
-
 /* ── EXPORT / IMPORT ── */
 function buildExportObj() {
   return { app:'apex-tracker', version:1, exportedAt:new Date().toISOString(), count:entries.length, entries };
@@ -1020,7 +829,6 @@ function renderDataPreview() {
 
 updateHeader();
 renderRecent();
-renderKeyStatus();
 </script>
 </body>
 </html>
