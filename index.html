@@ -63,6 +63,14 @@
   .form-group label { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
   .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: var(--font-body); font-size: 16px; padding: 10px 12px; outline: none; transition: border-color 0.2s; -webkit-appearance: none; appearance: none; }
   .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--red); }
+  .form-group input, .form-group select { height: 44px; }
+  .form-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8fa8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 34px;
+  }
   .form-group textarea { resize: vertical; min-height: 80px; font-size: 14px; }
   .form-group select option { background: var(--bg3); }
 
@@ -122,9 +130,9 @@
   /* MOBILE CARDS */
   .entry-cards { display: flex; flex-direction: column; gap: 8px; }
   .entry-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
-  .entry-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .entry-card-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .entry-card-date { font-size: 11px; color: var(--text3); white-space: nowrap; }
+  .entry-card-date { font-size: 11px; color: var(--text3); white-space: nowrap; margin-bottom: 6px; }
+  .entry-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; row-gap: 6px; }
+  .entry-card-left { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
   .entry-card-pts { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
   .entry-card-pts.pos { color: var(--teal); }
   .entry-card-pts.neg { color: var(--red); }
@@ -203,6 +211,14 @@
     </div>
   </header>
 
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <div id="season-bar" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;">Current Season</div>
+      <span id="h-season" style="font-family:var(--font-head);font-weight:700;letter-spacing:1px;font-size:15px;color:var(--purple);"></span>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="startNewSeason()">New Season</button>
+    </div>
+  </div>
+
   <div class="tabs">
     <button class="tab active" onclick="switchTab('record')">Record</button>
     <button class="tab" onclick="switchTab('history')">History</button>
@@ -266,15 +282,21 @@
       <div class="table-wrap">
         <div class="table-header">
           <h2>HISTORY</h2>
-          <input class="search-input" id="search-d" placeholder="Search..." oninput="renderHistory()">
+          <div style="display:flex;gap:8px;">
+            <select class="search-input" id="season-filter-d" onchange="onSeasonFilterChange(this.value)" style="width:130px;"></select>
+            <input class="search-input" id="search-d" placeholder="Search..." oninput="renderHistory()">
+          </div>
         </div>
         <div id="history-table-d"></div>
       </div>
     </div>
     <div class="mobile-cards">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
         <span style="font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--text2);">HISTORY</span>
-        <input class="search-input" id="search-m" placeholder="Search..." oninput="renderHistory()" style="width:130px;">
+        <div style="display:flex;gap:6px;">
+          <select class="search-input" id="season-filter-m" onchange="onSeasonFilterChange(this.value)" style="width:100px;"></select>
+          <input class="search-input" id="search-m" placeholder="Search..." oninput="renderHistory()" style="width:110px;">
+        </div>
       </div>
       <div id="history-cards-m"></div>
     </div>
@@ -282,6 +304,9 @@
 
   <!-- CHART -->
   <div id="view-chart" class="view">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+      <select class="search-input" id="season-filter-chart" onchange="onSeasonFilterChange(this.value)" style="width:160px;"></select>
+    </div>
     <div class="stat-row" id="stat-row"></div>
     <div class="chart-card full" style="margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -388,11 +413,94 @@ const RANK_COLORS = new Proxy({}, { get: (_, r) => rankColor(r) });
 let entries = JSON.parse(localStorage.getItem('apex_entries') || '[]');
 let lineChart, barChart, dailyChart;
 
+let currentSeason = localStorage.getItem('apex_current_season');
+if(!currentSeason) {
+  currentSeason = 'Season 1';
+  localStorage.setItem('apex_current_season', currentSeason);
+}
+// entries created before season tracking existed get stamped into the season active at migration time
+let seasonMigrated = false;
+entries.forEach(e => { if(!e.season) { e.season = currentSeason; seasonMigrated = true; } });
+let seasonFilter = currentSeason;
+
 function saveData() { localStorage.setItem('apex_entries', JSON.stringify(entries)); }
+if(seasonMigrated) saveData();
 function today()    { return new Date().toISOString().split('T')[0]; }
 function fmtPt(p)   { return (p >= 0 ? '+' : '') + p; }
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function entrySeason(e) { return e.season || currentSeason; }
+
+function latestDateForSeason(season) {
+  let latest = null;
+  entries.forEach(e => { if(entrySeason(e) === season && (!latest || e.date > latest)) latest = e.date; });
+  return latest;
+}
+
+function getAllSeasons() {
+  const latestDate = {};
+  entries.forEach(e => {
+    const s = entrySeason(e);
+    if(!latestDate[s] || e.date > latestDate[s]) latestDate[s] = e.date;
+  });
+  if(!(currentSeason in latestDate)) latestDate[currentSeason] = '9999-99-99';
+  return Object.keys(latestDate).sort((a,b) => latestDate[b].localeCompare(latestDate[a]));
+}
+
+function seasonOptionsHTML(selected) {
+  const opts = getAllSeasons().map(s => `<option value="${escHtml(s)}" ${s===selected?'selected':''}>${escHtml(s)}</option>`).join('');
+  return `<option value="ALL" ${selected==='ALL'?'selected':''}>All Seasons</option>${opts}`;
+}
+
+function seasonBadge(e) {
+  const s = entrySeason(e);
+  return `<span class="rank-badge" style="background:rgba(155,114,255,0.15);color:var(--purple);border:1px solid rgba(155,114,255,0.3);cursor:pointer;" onclick="reassignSeason(${e.id})" title="Click to change this entry's season">${escHtml(s)}</span>`;
+}
+
+function filteredBySeasonEntries() {
+  if(seasonFilter === 'ALL') return entries;
+  return entries.filter(e => entrySeason(e) === seasonFilter);
+}
+
+function onSeasonFilterChange(val) {
+  seasonFilter = val;
+  renderHistory();
+  if(document.getElementById('view-chart').classList.contains('active')) renderCharts();
+}
+
+function suggestNextSeasonName(cur) {
+  const m = cur.match(/^(.*?)(\d+)(\D*)$/);
+  if(m) return m[1] + (parseInt(m[2], 10) + 1) + m[3];
+  return cur + ' 2';
+}
+
+function startNewSeason() {
+  const name = prompt('Start a new season. New entries will be tagged with this name:', suggestNextSeasonName(currentSeason));
+  if(!name || !name.trim()) return;
+  currentSeason = name.trim();
+  localStorage.setItem('apex_current_season', currentSeason);
+  seasonFilter = currentSeason;
+  updateHeader();
+  renderHistory();
+  if(document.getElementById('view-chart').classList.contains('active')) renderCharts();
+  showToast(`Season set to "${currentSeason}"`, 'var(--teal)');
+}
+
+function reassignSeason(id) {
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  const name = prompt('Season for this entry:', entrySeason(e));
+  if(!name || !name.trim()) return;
+  e.season = name.trim();
+  saveData();
+  updateHeader();
+  renderHistory();
+  if(document.getElementById('view-chart').classList.contains('active')) renderCharts();
+  showToast('Season updated ✓', 'var(--teal)');
+}
 
 document.getElementById('f-date').value = today();
+if(entries.length) document.getElementById('f-rank').value = entries[0].rank;
 
 function showToast(msg, color) {
   const t = document.getElementById('toast');
@@ -441,7 +549,7 @@ function addEntry() {
   if(!date || !rank || raw === '') { err.style.display = 'block'; return; }
   err.style.display = 'none';
   const pts = signPositive ? Math.abs(parseInt(raw)) : -Math.abs(parseInt(raw));
-  entries.unshift({ id: Date.now(), date, rank, points: pts, memo });
+  entries.unshift({ id: Date.now(), date, rank, points: pts, memo, season: currentSeason });
   saveData(); updateHeader();
   document.getElementById('f-points').value = '';
   document.getElementById('f-memo').value = '';
@@ -467,14 +575,16 @@ function deleteEntry(id) {
 }
 
 function updateHeader() {
-  document.getElementById('h-sessions').textContent = entries.length;
-  const total = entries.reduce((a,e) => a + e.points, 0);
+  document.getElementById('h-season').textContent = currentSeason;
+  const seasonEntries = entries.filter(e => entrySeason(e) === currentSeason);
+  document.getElementById('h-sessions').textContent = seasonEntries.length;
+  const total = seasonEntries.reduce((a,e) => a + e.points, 0);
   const el = document.getElementById('h-total');
   el.textContent = fmtPt(total);
   el.style.color = total >= 0 ? 'var(--gold)' : 'var(--red)';
-  if(entries.length > 0) {
-    document.getElementById('h-rank').textContent = entries[0].rank;
-    document.getElementById('h-rank').style.color = rankColor(entries[0].rank) || 'var(--text2)';
+  if(seasonEntries.length > 0) {
+    document.getElementById('h-rank').textContent = seasonEntries[0].rank;
+    document.getElementById('h-rank').style.color = rankColor(seasonEntries[0].rank) || 'var(--text2)';
   } else {
     document.getElementById('h-rank').textContent = '—';
   }
@@ -492,8 +602,9 @@ function renderRecent() {
   if(entries.length === 0) { wrap.innerHTML = ''; return; }
   const cards = entries.slice(0,5).map(e => `
     <div class="entry-card">
+      <div class="entry-card-date">${e.date}</div>
       <div class="entry-card-top">
-        <div class="entry-card-left"><span class="entry-card-date">${e.date}</span>${rankBadge(e.rank)}</div>
+        <div class="entry-card-left">${rankBadge(e.rank)}${seasonBadge(e)}</div>
         <span class="entry-card-pts ${e.points>=0?'pos':'neg'}">${fmtPt(e.points)}</span>
       </div>
       ${e.memo ? `<div class="entry-card-memo">${e.memo.slice(0,60)}${e.memo.length>60?'…':''}</div>` : ''}
@@ -502,19 +613,26 @@ function renderRecent() {
 }
 
 function renderHistory() {
+  const sfD = document.getElementById('season-filter-d');
+  const sfM = document.getElementById('season-filter-m');
+  if(sfD) sfD.innerHTML = seasonOptionsHTML(seasonFilter);
+  if(sfM) sfM.innerHTML = seasonOptionsHTML(seasonFilter);
+
   const qd = (document.getElementById('search-d')?.value || '').toLowerCase();
   const qm = (document.getElementById('search-m')?.value || '').toLowerCase();
   const q  = qd || qm;
-  const list = q ? entries.filter(e => (e.memo||'').toLowerCase().includes(q) || e.rank.toLowerCase().includes(q)) : entries;
+  const scoped = filteredBySeasonEntries();
+  const list = q ? scoped.filter(e => (e.memo||'').toLowerCase().includes(q) || e.rank.toLowerCase().includes(q)) : scoped;
 
   const dtable = document.getElementById('history-table-d');
   if(dtable) {
     dtable.innerHTML = list.length === 0
       ? `<div class="empty-state"><div class="icon">📋</div><div>No entries</div></div>`
-      : `<table><thead><tr><th>Date</th><th>Rank</th><th>Points</th><th>Memo</th><th></th></tr></thead><tbody>
+      : `<table><thead><tr><th>Date</th><th>Rank</th><th>Season</th><th>Points</th><th>Memo</th><th></th></tr></thead><tbody>
           ${list.map(e => `<tr>
             <td class="date-cell">${e.date}</td>
             <td>${rankBadge(e.rank)}</td>
+            <td>${seasonBadge(e)}</td>
             <td class="${e.points>=0?'point-pos':'point-neg'}">${fmtPt(e.points)}</td>
             <td class="memo-cell" style="cursor:${e.memo?'pointer':'default'};" onclick="${e.memo?`openModal(${e.id})`:''}">
               ${e.memo ? e.memo.slice(0,40)+(e.memo.length>40?'…':'') : '—'}
@@ -530,8 +648,9 @@ function renderHistory() {
       ? `<div class="empty-state"><div class="icon">📋</div><div>No entries</div></div>`
       : `<div class="entry-cards">${list.map(e => `
           <div class="entry-card">
+            <div class="entry-card-date">${e.date}</div>
             <div class="entry-card-top">
-              <div class="entry-card-left"><span class="entry-card-date">${e.date}</span>${rankBadge(e.rank)}</div>
+              <div class="entry-card-left">${rankBadge(e.rank)}${seasonBadge(e)}</div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <span class="entry-card-pts ${e.points>=0?'pos':'neg'}">${fmtPt(e.points)}</span>
                 <button class="btn btn-danger" onclick="deleteEntry(${e.id})">Delete</button>
@@ -591,8 +710,11 @@ function buildTooltipOptions(labelsArr, pointsArr, ranksArr, cumArr) {
 }
 
 function renderLineChart() {
-  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
-  if(!sorted.length) return;
+  const sorted = [...filteredBySeasonEntries()].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  if(!sorted.length) {
+    if(lineChart) { lineChart.destroy(); lineChart = null; }
+    return;
+  }
 
   let labels, cumData, pointsArr, ranksArr, promotions;
 
@@ -712,15 +834,19 @@ function renderLineChart() {
 }
 
 function renderCharts() {
-  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
-  const total  = entries.reduce((a,e) => a+e.points, 0);
-  const wins   = entries.filter(e => e.points > 0).length;
-  const avg    = entries.length ? +(total/entries.length).toFixed(1) : 0;
-  const best   = entries.length ? Math.max(...entries.map(e=>e.points)) : 0;
+  const sfC = document.getElementById('season-filter-chart');
+  if(sfC) sfC.innerHTML = seasonOptionsHTML(seasonFilter);
+
+  const scoped = filteredBySeasonEntries();
+  const sorted = [...scoped].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  const total  = scoped.reduce((a,e) => a+e.points, 0);
+  const wins   = scoped.filter(e => e.points > 0).length;
+  const avg    = scoped.length ? +(total/scoped.length).toFixed(1) : 0;
+  const best   = scoped.length ? Math.max(...scoped.map(e=>e.points)) : 0;
 
   document.getElementById('stat-row').innerHTML = `
-    <div class="stat-card" style="--accent:var(--teal);"><div class="stat-label">Total PT</div><div class="stat-val ${total>=0?'up':'down'}">${fmtPt(total)}</div><div class="stat-sub">${entries.length} games</div></div>
-    <div class="stat-card" style="--accent:var(--gold);"><div class="stat-label">Win Rate</div><div class="stat-val gold">${entries.length?Math.round(wins/entries.length*100):0}%</div><div class="stat-sub">+PT: ${wins}/${entries.length}</div></div>
+    <div class="stat-card" style="--accent:var(--teal);"><div class="stat-label">Total PT</div><div class="stat-val ${total>=0?'up':'down'}">${fmtPt(total)}</div><div class="stat-sub">${scoped.length} games</div></div>
+    <div class="stat-card" style="--accent:var(--gold);"><div class="stat-label">Win Rate</div><div class="stat-val gold">${scoped.length?Math.round(wins/scoped.length*100):0}%</div><div class="stat-sub">+PT: ${wins}/${scoped.length}</div></div>
     <div class="stat-card" style="--accent:var(--purple);"><div class="stat-label">Avg PT</div><div class="stat-val ${avg>=0?'up':'down'}">${avg>=0?'+':''}${avg}</div><div class="stat-sub">per session</div></div>
     <div class="stat-card" style="--accent:var(--red);"><div class="stat-label">Best</div><div class="stat-val up">+${best}</div><div class="stat-sub">best session</div></div>`;
 
@@ -728,7 +854,7 @@ function renderCharts() {
 
   const TIER_ORDER = ['Rookie','Bronze','Silver','Gold','Platinum','Diamond','Master','Apex Predator'];
   const tierData = {};
-  entries.forEach(e => {
+  scoped.forEach(e => {
     const tier = rankTier(e.rank);
     const key = e.rank === 'Apex Predator' ? 'Apex Predator' : tier;
     if(!tierData[key]) tierData[key] = [];
@@ -752,7 +878,7 @@ function renderCharts() {
   });
 
   const wdayMap={}, dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  entries.forEach(e=>{const d=new Date(e.date).getDay();if(!wdayMap[d])wdayMap[d]=[];wdayMap[d].push(e.points);});
+  scoped.forEach(e=>{const d=new Date(e.date).getDay();if(!wdayMap[d])wdayMap[d]=[];wdayMap[d].push(e.points);});
   const dayData=dayNames.map((_,i)=>wdayMap[i]?Math.round(wdayMap[i].reduce((a,v)=>a+v,0)/wdayMap[i].length):0);
 
   if(dailyChart) dailyChart.destroy();
@@ -805,10 +931,24 @@ function importJSON(event) {
       const imported = Array.isArray(obj) ? obj : (obj.entries || []);
       if(!Array.isArray(imported) || imported.length === 0) throw new Error('No data found');
       const existingIds = new Set(entries.map(x => x.id));
-      const newItems    = imported.filter(x => x.id && !existingIds.has(x.id));
+      const newItems    = imported.filter(x => x.id && !existingIds.has(x.id))
+                                   .map(x => ({ ...x, season: x.season || currentSeason }));
       entries = [...entries, ...newItems].sort((a,b) => b.date.localeCompare(a.date));
+
+      // if the imported data's most recently played season is ahead of the current one, follow it
+      const overallLatest = entries.reduce((a,e) => (!a || e.date > a.date) ? e : a, null);
+      if(overallLatest) {
+        const latestSeason = entrySeason(overallLatest);
+        const curLatest = latestDateForSeason(currentSeason);
+        if(latestSeason !== currentSeason && (!curLatest || overallLatest.date > curLatest)) {
+          currentSeason = latestSeason;
+          localStorage.setItem('apex_current_season', currentSeason);
+          seasonFilter = currentSeason;
+        }
+      }
+
       saveData(); updateHeader(); renderDataPreview();
-      showToast(`Added ${newItems.length} entries ✓`, 'var(--teal)');
+      showToast(`Added ${newItems.length} entries ✓ (current season: ${currentSeason})`, 'var(--teal)');
     } catch(err) { showToast('Import failed: ' + err.message, 'var(--red)'); }
     event.target.value = '';
   };
